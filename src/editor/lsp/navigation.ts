@@ -321,6 +321,24 @@ const editedAt = new WeakMap<EditorView, number>();
  * version meanwhile (kotlin-language-server: nothing for ~300 ms after typing).
  * An empty answer right after an edit is asked again a few times.
  */
+/**
+ * IDEA answers Go to Implementation with the declaration when nothing implements the name.
+ * gopls returns nothing — or an error naming the interfaces it looked for — for a method that
+ * overrides nothing, so ⌘-implementation would dead-end where IDEA still navigates.
+ */
+async function definitionFallback(
+  view: EditorView,
+  offset: number,
+  superseded: () => boolean,
+): Promise<DeclarationTarget[]> {
+  const before = view.state.doc;
+  const defs = dedupeLocations(await requestNavigation(view, offset, "definition").catch(() => []));
+  const context = docOf(view);
+  if (!context || superseded() || view.state.doc !== before) return [];
+  // On the declaration itself there is nowhere to go: it is its own answer.
+  return defs.filter((l) => !isSelfTarget([l], context.path, offsetToPos(before, offset)));
+}
+
 async function gotoAfterEdits(
   view: EditorView,
   request: () => Promise<DeclarationTarget[]>,
@@ -495,7 +513,22 @@ async function gotoResolved(
   try {
     const stream = kind === "implementation" ? streamedImplementations(view, offset, done, superseded) : null;
     streamed = stream;
-    const request = stream ? () => stream.request(doc.doc, pos) : () => requestNavigation(view, offset, kind);
+    const request =
+      kind === "implementation"
+        ? async () => {
+            try {
+              const found = await (stream ? stream.request(doc.doc, pos) : requestNavigation(view, offset, kind));
+              if (found.length) return found;
+            } catch (e) {
+              if (isCancelled(e) || superseded() || isUnavailable(e)) throw e;
+              const fallback = await definitionFallback(view, offset, superseded);
+              if (fallback.length) return fallback;
+              // Nothing declares it either: keep the server's error rather than inventing one.
+              throw e;
+            }
+            return definitionFallback(view, offset, superseded);
+          }
+        : () => requestNavigation(view, offset, kind);
     locs = dedupeLocations(await gotoAfterEdits(view, request, superseded));
   } catch (e) {
     // The chooser shows the first ones: closing it cancelled the search, or the rest failed.
