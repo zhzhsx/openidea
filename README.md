@@ -8,6 +8,8 @@ Nothing on this branch is part of the app; it only exists so the links stay vali
   branch (for example `terminal-exit-close`). Reuse the same topic folder for follow-up
   screenshots.
 - Keep the originals at 2x device pixel ratio and leave the surrounding UI in frame.
+- Don't overwrite a file that is already referenced: GitHub caches images. Add a new name
+  instead (`after-2.png`, `after-fixed.png`, …).
 - Reference an image with:
 
   ```
