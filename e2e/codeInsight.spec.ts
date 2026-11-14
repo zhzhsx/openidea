@@ -420,3 +420,97 @@ test("lazy plugin actions resolve only when invoked, never for their intention p
   const [applied] = await ipcCalls(page, "lsp_execute_code_action");
   expect(applied).toMatchObject({ action: { title: "Choose translation file", edit: { files: [] } } });
 });
+
+test("the item's documentation sits beside the lookup, never over its rows", async ({ workbench: page }) => {
+  const editor = await openSample(page);
+  const documentation = {
+    kind: "markdown",
+    value: `Resolves the order.\n\n${Array.from({ length: 5 }, (_, i) => `Paragraph ${i + 1} of the documentation text.`).join("\n\n")}`,
+  };
+  await page.evaluate((doc) => {
+    const item = (label: string) => ({
+      label,
+      labelDetail: "()",
+      detail: "OrderDto",
+      kind: "method",
+      documentation: doc,
+      sortText: null,
+      filterText: null,
+      preselect: false,
+      deprecated: false,
+      insertText: `${label}()`,
+      isSnippet: false,
+      replaceRange: null,
+      replaceRangeTab: null,
+      additionalEdits: [],
+      commitCharacters: [],
+      command: null,
+      data: null,
+      server: "kotlin",
+    });
+    window.__ipc.handlers.lsp_completion = () => ({
+      isIncomplete: false,
+      items: [item("toDto"), item("total"), item("toString")],
+    });
+  }, documentation);
+  // Settings normally come from the app's preferences; the delay is shortened so the test is quick.
+  // The desktop stub reports no settings; only the completion keys the panel reads are filled in,
+  // and the delay is shortened so the test does not wait for the real 500 ms.
+  await page.evaluate(async () => {
+    const { useProject } = await import("/src/platform/project.ts");
+    const settings = useProject.getState().settings;
+    useProject.setState({
+      settings: {
+        ...settings,
+        editor: {
+          ...settings?.editor,
+          completion: { ...settings?.editor?.completion, showDocumentation: true, documentationDelay: 200 },
+        },
+      } as unknown as NonNullable<typeof settings>,
+    });
+  });
+
+  const typeInLookup = async () => {
+    await editor.locator(".cm-line", { hasText: "fun list(" }).click();
+    await page.keyboard.press("End");
+    await page.keyboard.type("to");
+    await expect(page.locator(".cm-tooltip-autocomplete")).toBeVisible();
+    await expect(page.locator(".cm-completionInfo")).toHaveCount(1, { timeout: 5000 });
+  };
+  // The documentation is shown for the selected item, so it appears a delay after the list.
+  const geometry = () =>
+    page.evaluate(() => {
+      const info = document.querySelector(".cm-completionInfo") as HTMLElement;
+      const list = (document.querySelector(".cm-tooltip-autocomplete") as HTMLElement).getBoundingClientRect();
+      const rect = info.getBoundingClientRect();
+      const overlapX = Math.max(0, Math.min(rect.right, list.right) - Math.max(rect.left, list.left));
+      const overlapY = Math.max(0, Math.min(rect.bottom, list.bottom) - Math.max(rect.top, list.top));
+      const hit = document.elementFromPoint(rect.left + 4, rect.top + 4);
+      return {
+        overlap: overlapX * overlapY,
+        visible: !!hit?.closest(".cm-completionInfo"),
+        inside: rect.left >= 0 && rect.right <= document.documentElement.clientWidth,
+        topGap: Math.abs(rect.top - list.top),
+        side: info.className.includes("cm-completionInfo-left") ? "left" : "right",
+      };
+    });
+
+  await page.setViewportSize({ width: 760, height: 900 });
+  await typeInLookup();
+  const narrow = await geometry();
+  expect(narrow.overlap).toBe(0);
+  expect(narrow.visible).toBe(true);
+  expect(narrow.inside).toBe(true);
+  expect(narrow.topGap).toBeLessThanOrEqual(1);
+  expect(narrow.side).toBe("left");
+
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await typeInLookup();
+  const wide = await geometry();
+  expect(wide.overlap).toBe(0);
+  expect(wide.visible).toBe(true);
+  expect(wide.inside).toBe(true);
+  expect(wide.topGap).toBeLessThanOrEqual(1);
+  expect(wide.side).toBe("right");
+});

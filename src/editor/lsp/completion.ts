@@ -641,6 +641,45 @@ function moveLookup(view: EditorView, forward: boolean): boolean {
 /** IDEA inserts a sole candidate right away on explicit invocation (Code Completion › Automatically insert single suggestions). */
 const AUTO_INSERT_DELAY = 80; // past CodeMirror's interactionDelay
 
+/**
+ * CodeMirror's default placement draws the item's documentation inside the list (over its rows)
+ * when the window has no room beside it. Keep it beside instead: right when it fits, otherwise
+ * left, narrowing to the room there is. The panel may cover the chrome around the editor
+ * (sidebar, gutter) — it stays visible next to the list, unlike stacking it under it.
+ */
+const LOOKUP_DOC_GAP = 6;
+const LOOKUP_DOC_MAX_HEIGHT = 320;
+
+interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+function positionInfoBesideLookup(view: EditorView, list: Box, _option: Box, info: Box, space: Box) {
+  // The tooltip may be scaled with the editor; CodeMirror's own maths divides by that scale.
+  const zoom = view.dom.getBoundingClientRect().width / (view.dom.offsetWidth || 1) || 1;
+  const root = view.dom.ownerDocument.documentElement;
+  const infoWidth = info.right - info.left;
+  const infoHeight = info.bottom - info.top;
+  // Room to the window's edges, not just the editor's: a narrow pane would leave none.
+  const roomRight = root.clientWidth - list.right - LOOKUP_DOC_GAP;
+  const roomLeft = list.left - LOOKUP_DOC_GAP;
+  const side =
+    roomRight >= infoWidth ? "right" : roomLeft >= infoWidth ? "left" : roomRight >= roomLeft ? "right" : "left";
+  const width = Math.min(infoWidth, Math.max(0, side === "right" ? roomRight : roomLeft));
+  // Top edges lined up with the list's own, and no taller than the room left below it.
+  const height = Math.max(80, Math.min(infoHeight, LOOKUP_DOC_MAX_HEIGHT, space.bottom - list.top));
+  const beside = side === "right" ? "left" : "right";
+  return {
+    style:
+      `top: 0; max-width: ${width / zoom}px; max-height: ${height / zoom}px; ` +
+      `${beside}: 100%; margin-${side === "right" ? "left" : "right"}: ${LOOKUP_DOC_GAP / zoom}px`,
+    class: `cm-completionInfo-${side}`,
+  };
+}
+
 const lookupTracker = ViewPlugin.fromClass(
   class {
     private prev: ReturnType<typeof completionStatus> = null;
@@ -825,6 +864,7 @@ export function completionExtension() {
         );
       },
       tooltipClass: () => "cm-lsp-completion",
+      positionInfo: positionInfoBesideLookup,
     }),
     completionFooter,
     lookupTracker,

@@ -109,7 +109,8 @@ export const lspTheme = EditorView.theme({
     // (gutter + project sidebar) keeps the word well clear of that edge.
     marginLeft:
       "calc(-1 * (1px + var(--cm-completion-edge) + var(--cm-completion-inset) + var(--cm-completion-icon) + var(--cm-completion-gap)))",
-    overflow: "hidden",
+    // No `overflow: hidden` here: the item's documentation is a child positioned beside the
+    // box (`left`/`right: 100%`, see `positionInfoBesideLookup`), and clipping it hid it.
   },
   ".cm-tooltip.cm-tooltip-autocomplete.cm-lsp-completion > ul": {
     fontFamily: "var(--openidea-editor-font, var(--font-mono))",
