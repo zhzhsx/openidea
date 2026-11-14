@@ -59,6 +59,32 @@ describe("color schemes", () => {
     expect(css).toContain("--syn-constant: #224466 !important");
   });
 
+  it("lists GoLand's own Go categories on the Go page", () => {
+    const ids = [
+      "go.builtin",
+      "go.type",
+      "go.callExported",
+      "go.callLocal",
+      "go.package",
+      "go.receiver",
+      "go.shadowing",
+      "go.commentRef",
+    ];
+    for (const id of ids) {
+      const attribute = ATTRIBUTES.find((a) => a.id === id);
+      expect(attribute?.path).toEqual(["Go"]);
+      expect(attribute?.language).toBe("Go");
+    }
+    expect(ATTRIBUTES.find((a) => a.id === "go.type")?.name).toBe("Type reference");
+    expect(schemeTokens("dark").get("--syn-go-type")).toBe("#6fafbd");
+    expect(schemeTokens("light").get("--syn-go-builtin")).toBe("#0033b3");
+    // An override reaches only Go semantics, and only that category.
+    const css = schemeCss("dark", { dark: { "go.receiver": { foreground: "#224466" } } });
+    expect(css).toContain('.cm-editor[data-language="Go"]');
+    expect(css).toContain("--syn-go-receiver: #224466 !important");
+    expect(css).not.toContain("--syn-param: #224466");
+  });
+
   it("offers a C# scheme page and scopes its overrides to C# editors", () => {
     expect(ATTRIBUTES.find((a) => a.id === "csharp.className")?.path).toEqual(["C#"]);
     const css = schemeCss("dark", { dark: { "csharp.keyword": { foreground: "#224466" } } });

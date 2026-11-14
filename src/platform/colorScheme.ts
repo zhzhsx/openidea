@@ -67,6 +67,14 @@ const py = (
   defaults: Pick<AttributeDef, "defaultBold" | "defaultItalic" | "defaultEffect"> = {},
 ): AttributeDef => ({ ...syn(id, name, ["Python"], token, defaults), language: "Python" });
 
+/** A Go page attribute for a category GoLand splits out of the generic tokens. */
+const go = (
+  id: string,
+  name: string,
+  token: string,
+  defaults: Pick<AttributeDef, "defaultBold" | "defaultItalic" | "defaultEffect"> = {},
+): AttributeDef => ({ ...syn(`go.${id}`, name, ["Go"], token, defaults), language: "Go" });
+
 /** IDEA-style attribute tree: General, Language Defaults, then languages. */
 const BASE_ATTRIBUTES: readonly AttributeDef[] = [
   { id: "text", name: "Default text", path: ["General", "Text"], fg: "--fg-editor", bg: "--bg-editor" },
@@ -391,6 +399,15 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
     ["scriptTag", "PHP tags", "processing-instruction"],
     ["staticField", "Static field", "static-property"],
   ].map(([id, name, token]) => ({ ...syn(`php.${id}`, name!, ["PHP"], token!), language: "PHP" })),
+  // GoLand's Go categories, which the generic tokens merge (`semantic/go/highlight.ts`).
+  go("builtin", "Builtin type or function", "go-builtin"),
+  go("type", "Type reference", "go-type"),
+  go("callExported", "Exported function call", "go-call-exported"),
+  go("callLocal", "Local function call", "go-call-local"),
+  go("package", "Package", "go-package"),
+  go("receiver", "Method receiver", "go-receiver"),
+  go("shadowing", "Shadowing variable", "go-shadowing"),
+  go("commentRef", "Comment reference", "go-comment-ref"),
 ];
 
 // --- scheme base values ------------------------------------------------------

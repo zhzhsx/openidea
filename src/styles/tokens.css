@@ -159,6 +159,15 @@ html {
   /* PhpStorm colours PHP variables and function calls on their own */
   --syn-php-variable: var(--syn-property);
   --syn-php-function-call: var(--syn-function);
+  /* GoLand colours Go's own categories (the Go plugin's scheme, dark) */
+  --syn-go-builtin: #cc7832;
+  --syn-go-call-exported: #b09d79;
+  --syn-go-call-local: #b09d79;
+  --syn-go-type: #6fafbd;
+  --syn-go-package: #afbf7e;
+  --syn-go-receiver: #4eade5;
+  --syn-go-shadowing: #7dbda2;
+  --syn-go-comment-ref: #a1a1a1;
   --syn-builtin: #8888c6;
   --syn-self: #94558d;
   --syn-keyword-arg: #aa4926;
@@ -603,6 +612,15 @@ html {
   --syn-python-docstring-keyword: var(--syn-doc-comment-tag-value);
   --syn-php-variable: var(--syn-property);
   --syn-php-function-call: var(--syn-function);
+  /* GoLand colours Go's own categories (the Go plugin's scheme, light) */
+  --syn-go-builtin: #0033b3;
+  --syn-go-call-exported: #36666b;
+  --syn-go-call-local: #36666b;
+  --syn-go-type: #336ecc;
+  --syn-go-package: #805900;
+  --syn-go-receiver: #008a91;
+  --syn-go-shadowing: #708c00;
+  --syn-go-comment-ref: #525252;
   --syn-builtin: #000080;
   --syn-self: #94558d;
   --syn-keyword-arg: #660099;
@@ -901,6 +919,15 @@ html {
   --syn-python-docstring-keyword: var(--syn-doc-comment-tag-value);
   --syn-php-variable: var(--syn-property);
   --syn-php-function-call: var(--syn-function);
+  /* GoLand colours Go's own categories (the Go plugin's scheme, dark) */
+  --syn-go-builtin: #cc7832;
+  --syn-go-call-exported: #b09d79;
+  --syn-go-call-local: #b09d79;
+  --syn-go-type: #6fafbd;
+  --syn-go-package: #afbf7e;
+  --syn-go-receiver: #4eade5;
+  --syn-go-shadowing: #7dbda2;
+  --syn-go-comment-ref: #a1a1a1;
   --syn-builtin: #b0b0f0;
   --syn-self: #d08ac8;
   --syn-keyword-arg: #e0805c;
@@ -1290,6 +1317,14 @@ html {
   --syn-python-docstring-keyword: var(--syn-doc-comment-tag-value);
   --syn-php-variable: var(--syn-property);
   --syn-php-function-call: var(--syn-function);
+  --syn-go-builtin: var(--syn-builtin);
+  --syn-go-call-exported: var(--syn-function-call);
+  --syn-go-call-local: var(--syn-function-call);
+  --syn-go-type: var(--syn-type);
+  --syn-go-package: var(--syn-namespace);
+  --syn-go-receiver: var(--syn-param);
+  --syn-go-shadowing: var(--syn-variable);
+  --syn-go-comment-ref: var(--syn-doc-comment);
   --syn-builtin: var(--palette-cyan);
   --syn-self: var(--palette-red);
   --syn-keyword-arg: var(--palette-red);

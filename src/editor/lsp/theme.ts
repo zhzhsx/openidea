@@ -463,6 +463,17 @@ export const lspTheme = EditorView.theme({
   ".cm-sem-python-constant": semanticStyle("python-constant", "constant"),
   ".cm-sem-python-property": semanticStyle("python-property", "property"),
   ".cm-sem-python-type-parameter": semanticStyle("python-type-parameter", "type"),
+  // --- Go: GoLand splits what the generic tokens merge ----------------------
+  // Calls keep the declaration/use distinction: exported and package-local calls share one colour,
+  // predeclared functions (`len`, `make`) and predeclared types another.
+  ".cm-sem-go-call-exported": semanticStyle("go-call-exported", "function-call"),
+  ".cm-sem-go-call-local": semanticStyle("go-call-local", "function-call"),
+  ".cm-sem-go-builtin": semanticStyle("go-builtin", "builtin"),
+  ".cm-sem-go-type": semanticStyle("go-type", "type"),
+  ".cm-sem-go-package": semanticStyle("go-package", "namespace"),
+  ".cm-sem-go-receiver": semanticStyle("go-receiver", "param"),
+  ".cm-sem-go-shadowing": semanticStyle("go-shadowing", "variable"),
+  ".cm-sem-go-comment-ref, .cm-sem-go-comment-ref *": semanticStyle("go-comment-ref", "doc-comment"),
   // Deprecation wins over role effects, including static fields.
   ".cm-content .cm-sem-deprecated, .cm-content .cm-sem-deprecated *": { textDecoration: "line-through" },
   // Semantic highlighting: after the base classes so a parameter's colour gives way, and over the
