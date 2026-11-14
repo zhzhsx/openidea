@@ -98,6 +98,66 @@ test("completion lists the server's items and inserts the chosen one", async ({ 
   expect((await ipcCalls(page, "lsp_completion")).length).toBeGreaterThan(0);
 });
 
+test("typing over an open documentation tooltip keeps the lookup at the caret", async ({ workbench: page }) => {
+  const editor = await openSample(page);
+  await page.evaluate(() => {
+    const item = (label: string) => ({
+      label,
+      labelDetail: "()",
+      detail: "Unit",
+      kind: "method",
+      documentation: { kind: "markdown", value: `Docs for **${label}**.` },
+      sortText: null,
+      filterText: null,
+      preselect: false,
+      deprecated: false,
+      insertText: `${label}()`,
+      isSnippet: false,
+      replaceRange: null,
+      replaceRangeTab: null,
+      additionalEdits: [],
+      commitCharacters: [],
+      command: null,
+      data: null,
+      server: "kotlin",
+    });
+    window.__ipc.handlers.lsp_completion = () => ({
+      isIncomplete: false,
+      items: [item("service"), item("serviceName"), item("setUp")],
+    });
+    // Long enough that it cannot fit above the line: it opens below the caret instead.
+    window.__ipc.handlers.lsp_hover = () => ({
+      contents: {
+        kind: "markdown",
+        value: Array.from({ length: 20 }, (_, i) => `Paragraph ${i + 1} of the documentation.`).join("\n\n"),
+      },
+      range: null,
+    });
+  });
+  const geometry = await editor.locator(".cm-content").evaluate(async (content) => {
+    const viewModule = "/node_modules/.vite/deps/@codemirror_view.js";
+    const { EditorView } = await import(/* @vite-ignore */ viewModule);
+    const view = EditorView.findFromDOM(content as HTMLElement)!;
+    const line = view.state.doc.line(17);
+    const find = line.from + line.text.indexOf("find");
+    const caret = view.coordsAtPos(find + 5)!;
+    const word = view.coordsAtPos(find)!;
+    view.dispatch({ selection: { anchor: find + 5 } });
+    view.focus();
+    return { caretBottom: caret.bottom, wordX: word.left + 2, wordY: (word.top + word.bottom) / 2 };
+  });
+  await page.mouse.move(geometry.wordX, geometry.wordY);
+  const tooltip = page.locator(".cm-tooltip-hover");
+  await expect(tooltip).toHaveClass(/cm-tooltip-below/);
+  await page.keyboard.type("se");
+  const popup = page.locator(".cm-tooltip-autocomplete");
+  await expect(popup.getByText("service", { exact: true })).toBeVisible();
+  // The documentation gives way to the lookup instead of pushing it below itself.
+  await expect(tooltip).toHaveCount(0);
+  const listTop = (await popup.boundingBox())!.y;
+  expect(Math.abs(listTop - geometry.caretBottom)).toBeLessThanOrEqual(20);
+});
+
 for (const key of ["Enter", "Tab"]) {
   for (const prefix of ["", "v"]) {
     test(`${key} leaves the caret after a field snippet at root.${prefix}`, async ({ workbench: page }, info) => {

@@ -216,7 +216,13 @@ const hoverYieldsToNavigation = ViewPlugin.fromClass(
 
 export function hoverExtension(): Extension {
   return [
-    hoverTooltip(hoverSource, { hoverTime: Math.max(100, editorPrefs().codeEditing.quickDocDelay) }),
+    // Typing dismisses the documentation popup (IDEA's behaviour). Otherwise it
+    // stays open, mapped to the edit, and the completion lookup that opens at
+    // the caret is displaced below it by the tooltip collision avoidance.
+    hoverTooltip(hoverSource, {
+      hoverTime: Math.max(100, editorPrefs().codeEditing.quickDocDelay),
+      hideOnChange: true,
+    }),
     hoverYieldsToNavigation,
   ];
 }
