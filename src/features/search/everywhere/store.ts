@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getContext, type ContextKeys } from "@/platform/context";
+import { getContext, setContext, type ContextKeys } from "@/platform/context";
 import { loadJson, saveJson } from "../common/open";
 import type { ProjectFileSet } from "@/platform/ipc";
 import type { SeTab } from "./model";
@@ -56,6 +56,9 @@ export function setSearchEverywhereFilter<T extends FilterTab>(tab: T, value: Se
   saveJson(FILTERS_KEY, filters);
 }
 
+/** Published for the `searchEverywhere.next/previous` actions (bound per keymap). */
+export const SEARCH_EVERYWHERE_OPEN_KEY = "searchEverywhereOpen";
+
 /**
  * Opens the dialog, or while it is open switches to `tab` (the query is kept);
  * re-invoking the shown tab toggles "include non-project items", like IDEA.
@@ -79,6 +82,7 @@ export function showSearchEverywhere(tab: SeTab, opts: { query?: string } = {}) 
     ctx: { ...getContext(), popupOpen: false },
     session: s.session + 1,
   });
+  setContext(SEARCH_EVERYWHERE_OPEN_KEY, true);
 }
 
 /** The user's choice of scope: stops widening automatically. */
@@ -113,6 +117,18 @@ export function hideSearchEverywhere() {
   const s = useSearchEverywhere.getState();
   if (s.open) pushSearchHistory(s.tab, s.query);
   useSearchEverywhere.setState({ open: false });
+  setContext(SEARCH_EVERYWHERE_OPEN_KEY, false);
+}
+
+/** The dialog installs a handler so the navigation actions can step its result list. */
+let stepHandler: ((forward: boolean) => void) | null = null;
+export function setSearchEverywhereStepHandler(handler: ((forward: boolean) => void) | null) {
+  stepHandler = handler;
+}
+export function stepSearchEverywhere(forward: boolean): boolean {
+  if (!useSearchEverywhere.getState().open || !stepHandler) return false;
+  stepHandler(forward);
+  return true;
 }
 
 const RECENT_ACTIONS_KEY = "openidea.search.recentActions.v1";

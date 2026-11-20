@@ -9,6 +9,11 @@ export const vscodeMacos: Record<string, string[]> = {
   // Navigate
   "navigate.searchEverywhere": ["Shift Shift"],
   "navigate.gotoClass": [],
+  // Emacs-style stepping: configurable, unbound by default (Ctrl+N/P belong to other actions).
+  "searchEverywhere.next": [],
+  "searchEverywhere.previous": [],
+  "editor.completion.next": [],
+  "editor.completion.previous": [],
   "navigate.gotoFile": ["Meta+P"],
   "navigate.gotoSymbol": ["Meta+T"],
   "navigate.findAction": ["Meta+Shift+P", "F1"],

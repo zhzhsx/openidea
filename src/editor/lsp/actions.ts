@@ -8,7 +8,7 @@ import { maybeEditorService } from "@/workbench/contributions";
 import { useProject } from "@/platform/project";
 import { validateLanguages } from "@/platform/languageSettings";
 import type { Settings } from "@/bindings";
-import { explicitCompletion } from "./completion";
+import { explicitCompletion, moveLookup } from "./completion";
 import { triggerSignatureHelp } from "./signature";
 import { quickDefinition, quickDocumentation } from "./hover";
 import { expressionTypeInfo } from "./typeInfo";
@@ -32,6 +32,8 @@ import { evaluateWhen } from "@/platform/context";
 
 /** Editor actions apply to the active text editor unless a tool window or popup owns the keyboard. */
 export const EDITOR_WHEN = "textEditorActive && (editorFocus || !toolWindowFocus)";
+/** Completion navigation only runs while a lookup is open on the focused editor. */
+export const COMPLETION_WHEN = `${EDITOR_WHEN} && completionActive`;
 
 /**
  * Languages whose servers offer Generate (constructors, accessors, overrides…).
@@ -214,6 +216,12 @@ export function registerLspActions(): () => void {
     editorAction("code.completion", "Basic", "Code Completion", (v) => explicitCompletion(v), {
       icon: "list",
       keywords: ["code completion", "basic completion", "autocomplete"],
+    }),
+    editorAction("editor.completion.next", "Lookup Down", "Code Completion", (v) => moveLookup(v, true), {
+      when: COMPLETION_WHEN,
+    }),
+    editorAction("editor.completion.previous", "Lookup Up", "Code Completion", (v) => moveLookup(v, false), {
+      when: COMPLETION_WHEN,
     }),
     editorAction("code.parameterInfo", "Parameter Info", "Code", (v) => triggerSignatureHelp(v, true)),
     editorAction("code.quickDocumentation", "Quick Documentation", "Code", quickDocumentation, {

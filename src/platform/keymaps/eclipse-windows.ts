@@ -77,6 +77,11 @@ export const eclipseWindows: Record<string, string[]> = {
   "navigate.forward": ["Alt+Right", "Button5"],
   "navigate.gotoTest": [],
   "navigate.gotoClass": ["Shift+Ctrl+T"],
+  // Emacs-style stepping: configurable, unbound by default (Ctrl+N/P belong to other actions).
+  "searchEverywhere.next": [],
+  "searchEverywhere.previous": [],
+  "editor.completion.next": [],
+  "editor.completion.previous": [],
   "navigate.declaration": ["F3"],
   "db.goToDdl": ["F3"],
   "navigate.gotoFile": ["Shift+Ctrl+R"],

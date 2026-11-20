@@ -7,6 +7,9 @@ export const intellijMacos: Record<string, string[]> = {
   "editor.createRectangularSelectionOnMouseDrag": ["Alt+Button1", "Button2"],
   // Navigate
   "navigate.searchEverywhere": ["Shift Shift"],
+  // Emacs-style result stepping: Ctrl is free on macOS, so bind by default.
+  "searchEverywhere.next": ["Ctrl+N"],
+  "searchEverywhere.previous": ["Ctrl+P"],
   "navigate.gotoClass": ["Meta+O"],
   "navigate.gotoFile": ["Meta+Shift+O"],
   "navigate.gotoSymbol": ["Meta+Alt+O"],
@@ -83,6 +86,9 @@ export const intellijMacos: Record<string, string[]> = {
   "editor.inlineCompletion.dismiss": ["Escape"],
   "editor.inlineCompletion.next": ["Alt+]"],
   "editor.inlineCompletion.previous": ["Alt+["],
+  // Emacs-style completion stepping: Ctrl is free on macOS, so bind by default.
+  "editor.completion.next": ["Ctrl+N"],
+  "editor.completion.previous": ["Ctrl+P"],
   "code.parameterInfo": ["Meta+P"],
   "code.quickDocumentation": ["F1", "Ctrl+J"],
   "code.quickDefinition": ["Alt+Space", "Meta+Y"],

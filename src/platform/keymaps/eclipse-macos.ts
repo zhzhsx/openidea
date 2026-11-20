@@ -71,6 +71,11 @@ export const eclipseMacos: Record<string, string[]> = {
   "navigate.forward": ["Meta+]", "Button5", "SwipeLeft"],
   "navigate.gotoTest": [],
   "navigate.gotoClass": ["Shift+Meta+T"],
+  // Emacs-style stepping: configurable, unbound by default (Ctrl+N/P belong to other actions).
+  "searchEverywhere.next": [],
+  "searchEverywhere.previous": [],
+  "editor.completion.next": [],
+  "editor.completion.previous": [],
   "navigate.declaration": ["F3"],
   "db.goToDdl": ["F3"],
   "navigate.gotoFile": ["Shift+Meta+R"],

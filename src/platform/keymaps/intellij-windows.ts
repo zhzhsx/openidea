@@ -9,6 +9,11 @@ export const intellijWindows: Record<string, string[]> = {
   // Navigate
   "navigate.searchEverywhere": ["Shift Shift"],
   "navigate.gotoClass": ["Ctrl+N"],
+  // Emacs-style stepping: configurable, unbound by default (Ctrl+N/P belong to other actions).
+  "searchEverywhere.next": [],
+  "searchEverywhere.previous": [],
+  "editor.completion.next": [],
+  "editor.completion.previous": [],
   "navigate.gotoFile": ["Ctrl+Shift+N"],
   "navigate.gotoSymbol": ["Ctrl+Alt+Shift+N"],
   "navigate.findAction": ["Ctrl+Shift+A"],

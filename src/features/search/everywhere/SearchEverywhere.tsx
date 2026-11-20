@@ -63,13 +63,16 @@ import {
   pushSearchHistory,
   searchHistory,
   selectSearchEverywhereTab,
+  SEARCH_EVERYWHERE_OPEN_KEY,
   setIncludeNonProject,
   setSearchEverywherePreview,
+  setSearchEverywhereStepHandler,
   useSearchEverywhere,
   widenSearchEverywhere,
 } from "./store";
 import styles from "./SearchEverywhere.module.css";
 import { isImeKey } from "@/platform/ime";
+import { setContext } from "@/platform/context";
 
 type SeScope = "allPlaces" | ProjectFileSet;
 
@@ -101,6 +104,11 @@ const INITIAL_SELECTION: Selection = { key: null, anchorKey: null, lead: -1, anc
 
 function SearchEverywhereDialog() {
   const tx = useTx();
+  // Keep the action-enabling context key in sync even when `open` was set directly.
+  useEffect(() => {
+    setContext(SEARCH_EVERYWHERE_OPEN_KEY, true);
+    return () => setContext(SEARCH_EVERYWHERE_OPEN_KEY, false);
+  }, []);
   const rowHeight = useRowHeight(ROW);
   const tab = useSearchEverywhere((s) => s.tab);
   const hint = hintFor(tab, tx);
@@ -399,6 +407,25 @@ function SearchEverywhereDialog() {
   // otherwise run editor actions on them (⌥↵ Show Context Actions, ⌥↑ Extend Selection…).
   useEffect(() => claimSearchKeys(() => inputRef.current), []);
 
+  // `searchEverywhere.next/previous` (bound per keymap) step the list through this channel.
+  const stepRef = useRef<(forward: boolean) => void>(() => {});
+  useEffect(() => {
+    stepRef.current = (forward) => {
+      const next = listNavigate(forward ? "ArrowDown" : "ArrowUp", {
+        items: rows,
+        active,
+        isSection: isSectionRow,
+        wrap: false,
+        pageSize: 10,
+      });
+      if (next !== null && next !== active) select(next);
+    };
+  });
+  useEffect(() => {
+    setSearchEverywhereStepHandler((forward) => stepRef.current(forward));
+    return () => setSearchEverywhereStepHandler(null);
+  }, []);
+
   /** IDEA's ⌥↵ on an action: record a shortcut for it (written to the active keymap). */
   const assignShortcut = (id: string) => closeThen(() => void executeAction("settings.assignShortcut", id));
 
@@ -467,7 +494,7 @@ function SearchEverywhereDialog() {
       }
     }
     if (!["ArrowDown", "ArrowUp", "PageDown", "PageUp"].includes(e.key)) return;
-    const next = listNavigate(e.key, { items: rows, active, isSection: isSectionRow, wrap: !e.shiftKey, pageSize: 10 });
+    const next = listNavigate(e.key, { items: rows, active, isSection: isSectionRow, wrap: false, pageSize: 10 });
     if (next === null) return;
     e.preventDefault();
     select(next, e);

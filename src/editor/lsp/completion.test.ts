@@ -21,6 +21,7 @@ import {
   completionExtension,
   explicitCompletion,
   makeCompletion,
+  moveLookup,
   matchRanges,
   positionCompletionInfo,
   sortAlphabetically,
@@ -30,10 +31,14 @@ import {
   closeCompletion,
   completionStatus,
   currentCompletions,
+  selectedCompletion,
   snippet,
   startCompletion,
   type CompletionSource,
 } from "@codemirror/autocomplete";
+import { isActionKeyEnabled, registerAction } from "@/platform/actions";
+import { setContext } from "@/platform/context";
+import { useKeymap } from "@/platform/keymap";
 import { useProject } from "@/platform/project";
 import type { Settings } from "@/platform/ipc";
 import { setInvokeRoute } from "@/platform/tauriCore";
@@ -243,6 +248,77 @@ describe("completion helpers", () => {
     expect(identifierEnd("foo.barBaz(1)", 4)).toBe(10);
     expect(identifierEnd("x ", 1)).toBe(1);
     expect(identifierEnd("a𐐀\u0301;", 1)).toBe(4);
+  });
+});
+
+describe("editor.completion.next/previous actions", () => {
+  const disposers: Array<() => void> = [];
+  let view: EditorView | null = null;
+
+  afterEach(() => {
+    view?.destroy();
+    view = null;
+    disposers.splice(0).forEach((d) => d());
+    document.body.innerHTML = "";
+    useKeymap.setState({ overrides: {}, preset: "intellij-windows" });
+    setContext("completionActive", false);
+    setContext("textEditorActive", false);
+    setContext("editorFocus", false);
+  });
+
+  function editor(labels: string[]) {
+    const source: CompletionSource = (ctx) => ({
+      from: ctx.matchBefore(/\w*/)?.from ?? ctx.pos,
+      options: labels.map((label) => ({ label })),
+    });
+    const v = new EditorView({
+      state: EditorState.create({
+        doc: "pri",
+        selection: { anchor: 3 },
+        extensions: [completionExtension(), EditorState.languageData.of(() => [{ openideaCompletion: source }])],
+      }),
+      parent: document.body,
+    });
+    view = v;
+    return v;
+  }
+
+  async function openLookup(v: EditorView) {
+    explicitCompletion(v);
+    await vi.waitFor(() => expect(completionStatus(v.state)).toBe("active"), { timeout: 2000 });
+    // CodeMirror ignores selection moves inside its interaction delay after opening.
+    await new Promise((r) => setTimeout(r, 100));
+  }
+
+  it("steps the selected item when a lookup is active", async () => {
+    const v = editor(["print", "println", "printf"]);
+    await openLookup(v);
+
+    const first = selectedCompletion(v.state)?.label;
+    expect(moveLookup(v, true)).toBe(true);
+    expect(selectedCompletion(v.state)?.label).not.toBe(first);
+    expect(moveLookup(v, false)).toBe(true);
+    expect(selectedCompletion(v.state)?.label).toBe(first);
+  });
+
+  it("does nothing when no lookup is open", () => {
+    const v = editor(["print", "println", "printf"]);
+    expect(moveLookup(v, true)).toBe(false);
+  });
+
+  it("gates the actions on completionActive (so Windows keeps Ctrl+N for Go to Class)", () => {
+    setContext("textEditorActive", true);
+    setContext("editorFocus", true);
+    const action = {
+      id: "editor.completion.next",
+      title: "Next",
+      when: "textEditorActive && completionActive",
+      run: () => {},
+    };
+    disposers.push(registerAction(action));
+    expect(isActionKeyEnabled(action)).toBe(false);
+    setContext("completionActive", true);
+    expect(isActionKeyEnabled(action)).toBe(true);
   });
 });
 

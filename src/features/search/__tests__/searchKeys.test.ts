@@ -33,4 +33,31 @@ describe("Search Everywhere's query field", () => {
     press(other, "Enter");
     expect(intentions).toHaveBeenCalledOnce();
   });
+
+  it("leaves Ctrl+N / Ctrl+P to the global keymap (stepping is a configurable action now)", () => {
+    const gotoClass = vi.fn();
+    const parameterInfo = vi.fn();
+    useKeymap.setState({
+      overrides: {
+        "navigate.gotoClass": ["Ctrl+N", "Ctrl+Shift+N"],
+        "code.parameterInfo": ["Ctrl+P"],
+      } as never,
+    });
+    setContext("textEditorActive", true);
+    const input = document.body.appendChild(document.createElement("input"));
+    disposers.push(
+      registerAction({ id: "navigate.gotoClass", title: "Go to Class", run: gotoClass }),
+      registerAction({ id: "code.parameterInfo", title: "Parameter Info", run: parameterInfo }),
+      installKeyboardDispatcher(window),
+      claimSearchKeys(() => input),
+    );
+    const press = (init: KeyboardEventInit) =>
+      input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }));
+
+    // The query field no longer claims these strokes: they reach the configured actions.
+    press({ key: "n", code: "KeyN", ctrlKey: true });
+    press({ key: "p", code: "KeyP", ctrlKey: true });
+    expect(gotoClass).toHaveBeenCalledOnce();
+    expect(parameterInfo).toHaveBeenCalledOnce();
+  });
 });

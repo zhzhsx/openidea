@@ -34,7 +34,12 @@ import {
 import { openLocation } from "./common/open";
 import { maybeToolWindowService } from "./common/services";
 import { installTracking, resetTracking } from "./common/tracking";
-import { hideSearchEverywhere, showSearchEverywhere, useSearchEverywhere } from "./everywhere/store";
+import {
+  hideSearchEverywhere,
+  showSearchEverywhere,
+  stepSearchEverywhere,
+  useSearchEverywhere,
+} from "./everywhere/store";
 import { ScopesDialogOverlay, showScopesDialog } from "./find/ScopesDialog";
 import { hideFindPopup, parseFindArg, runFindPopupCommand, showFindPopup, useFindPopup } from "./find/store";
 import {
@@ -291,6 +296,20 @@ export function activate(): void | (() => void) {
         icon: "search",
         keywords: ["find", "goto", "everything"],
         run: se("all"),
+      },
+      {
+        id: "searchEverywhere.next",
+        title: "Next group element",
+        category: "Navigate",
+        when: "searchEverywhereOpen",
+        run: () => stepSearchEverywhere(true),
+      },
+      {
+        id: "searchEverywhere.previous",
+        title: "Prev group element",
+        category: "Navigate",
+        when: "searchEverywhereOpen",
+        run: () => stepSearchEverywhere(false),
       },
       {
         id: "navigate.gotoClass",

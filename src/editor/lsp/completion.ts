@@ -64,6 +64,7 @@ import { featureBackoff } from "./availability";
 import { pathCompletionSource, pathContext, pathLike } from "./fileReferences";
 import { editorPrefs } from "@/platform/editorSettings";
 import { tx } from "@/platform/i18n";
+import { setContext } from "@/platform/context";
 import { showHint } from "./hint";
 import { inplaceRenameActive } from "./inplaceRename";
 import { languageSemantics } from "./semantic";
@@ -894,10 +895,22 @@ const lookupKeys = Prec.highest(
   }),
 );
 
-function moveLookup(view: EditorView, forward: boolean): boolean {
+/** Steps the active lookup; used by the `editor.completion.next/previous` actions. */
+export function moveLookup(view: EditorView, forward: boolean): boolean {
   if (completionStatus(view.state) !== "active") return false;
   focusedLookups.add(view);
   return moveCompletionSelection(forward)(view);
+}
+
+/** Published for `editor.completion.next/previous`, bound per keymap in `platform/keymaps`. */
+export const COMPLETION_ACTIVE_KEY = "completionActive";
+let completionFocusedView: EditorView | null = null;
+
+/** Keep the context key in sync with the lookup on the focused editor (multi-editor safe). */
+function publishCompletion(view: EditorView) {
+  if (view.hasFocus) completionFocusedView = view;
+  if (completionFocusedView === view)
+    setContext(COMPLETION_ACTIVE_KEY, view.hasFocus && completionStatus(view.state) === "active");
 }
 
 /** IDEA inserts a sole candidate right away on explicit invocation (Code Completion › Automatically insert single suggestions). */
@@ -909,6 +922,7 @@ const lookupTracker = ViewPlugin.fromClass(
     constructor(private view: EditorView) {}
     update(u: ViewUpdate) {
       const status = completionStatus(u.state);
+      publishCompletion(u.view);
       const prev = this.prev;
       this.prev = status;
       if (status === prev && status !== "active") return;
@@ -943,6 +957,12 @@ const lookupTracker = ViewPlugin.fromClass(
               acceptCompletion(view);
           }, AUTO_INSERT_DELAY);
         }
+      }
+    }
+    destroy() {
+      if (completionFocusedView === this.view) {
+        completionFocusedView = null;
+        setContext(COMPLETION_ACTIVE_KEY, false);
       }
     }
   },
@@ -1114,9 +1134,6 @@ export function completionExtension() {
     applyServerInsertMirror,
     Prec.highest(
       keymap.of([
-        // macOS: ⌃N / ⌃P are line down / up in text, so they move through the lookup as ↓ / ↑ do.
-        { mac: "Ctrl-n", run: (view) => moveLookup(view, true) },
-        { mac: "Ctrl-p", run: (view) => moveLookup(view, false) },
         {
           key: "Tab",
           run: (view) => {

@@ -66,8 +66,14 @@ const { usePlatform } = await import("@/platform/platformInfo");
 const { allActions } = await import("@/platform/actions");
 (globalThis as unknown as { __actions: typeof allActions }).__actions = allActions;
 const { SearchEverywhereOverlay } = await import("../everywhere/SearchEverywhere");
-const { showSearchEverywhere, hideSearchEverywhere, useSearchEverywhere, pushSearchHistory, searchHistory } =
-  await import("../everywhere/store");
+const {
+  showSearchEverywhere,
+  hideSearchEverywhere,
+  useSearchEverywhere,
+  pushSearchHistory,
+  searchHistory,
+  stepSearchEverywhere,
+} = await import("../everywhere/store");
 const { FindInFilesOverlay } = await import("../find/FindInFiles");
 const { showFindPopup, hideFindPopup } = await import("../find/store");
 const { defaultPreset, useKeymap } = await import("@/platform/keymap");
@@ -343,6 +349,45 @@ function clickOption(index: number, modifiers = {}) {
   fireEvent.mouseDown(row, modifiers);
   fireEvent.click(row, modifiers);
 }
+
+describe("Search Everywhere step actions", () => {
+  const leadIndex = () => resultOptions().findIndex((r) => r.getAttribute("data-lead") === "true");
+  const step = (forward: boolean) => act(() => stepSearchEverywhere(forward));
+
+  it("searchEverywhere.next/previous step the active result down and up, stopping at the ends", async () => {
+    await showDuplicateFiles();
+    expect(leadIndex()).toBe(0);
+    step(true);
+    expect(leadIndex()).toBe(1);
+    step(true);
+    expect(leadIndex()).toBe(2);
+    step(true);
+    expect(leadIndex()).toBe(2);
+    step(false);
+    expect(leadIndex()).toBe(1);
+    step(false);
+    expect(leadIndex()).toBe(0);
+    step(false);
+    expect(leadIndex()).toBe(0);
+  });
+
+  it("plain arrow keys stop at the ends as well", async () => {
+    const input = await showDuplicateFiles();
+    const key = (k: string) => fireEvent.keyDown(input, { key: k });
+    expect(leadIndex()).toBe(0);
+    key("ArrowUp");
+    expect(leadIndex()).toBe(0);
+    key("ArrowDown");
+    key("ArrowDown");
+    key("ArrowDown");
+    expect(leadIndex()).toBe(2);
+  });
+
+  it("does nothing when the dialog is closed", () => {
+    hideSearchEverywhere();
+    expect(stepSearchEverywhere(true)).toBe(false);
+  });
+});
 
 describe("Search Everywhere multi-selection", () => {
   it("extends, shrinks, crosses the anchor and clamps Shift selection; plain arrows select one", async () => {
