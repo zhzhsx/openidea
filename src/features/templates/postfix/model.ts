@@ -18,6 +18,11 @@ export interface PostfixTemplate {
   variables?: TemplateVariable[];
   /** Only offered when the expression starts its line (statement position). */
   statement?: boolean;
+  /**
+   * Keep candidates that do not start a line.
+   * Set this only when an action hoists the declaration out of the statement.
+   */
+  allowNonStatement?: boolean;
   /** Wrap compound expressions (`a + b`) in parentheses for `$EXPR$`. */
   wrapCompound?: boolean;
   /**
@@ -192,7 +197,16 @@ const go = set(
     { key: "if", description: "if expr {}", body: "if $EXPR$ {\n\t$END$\n}", statement: true },
     { key: "else", description: "if !expr {}", body: "if !$EXPR$ {\n\t$END$\n}", statement: true, wrapCompound: true },
     { key: "not", description: "!expr", body: "!$EXPR$$END$", wrapCompound: true },
-    { key: "var", description: "name := expr", body: "$NAME$ := $EXPR$$END$", statement: true, variables: [NAME] },
+    {
+      key: "var",
+      description: "name := expr",
+      body: "$NAME$ := $EXPR$$END$",
+      statement: true,
+      variables: [NAME],
+      allowNonStatement: true,
+      // The server declares the variable above the statement, as IDEA does.
+      action: "refactor.extractVariable",
+    },
     { key: "return", description: "return expr", body: "return $EXPR$$END$", statement: true },
     { key: "print", description: "fmt.Println(expr)", body: "fmt.Println($EXPR$)$END$", statement: true },
     {
@@ -537,6 +551,25 @@ function lineIsBlankBefore(state: EditorState, pos: number): boolean {
 }
 
 /**
+ * Returns the Go func literal ending at the dot, including an immediately invoked one.
+ * Call this before the text scan. The text scan cannot see past `func(...) T {`.
+ * The syntax tree walk stops at Function nodes.
+ */
+function goFunctionLiteral(state: EditorState, dot: number): PostfixTarget["candidates"][number] | null {
+  for (
+    let n: ReturnType<ReturnType<typeof syntaxTree>["resolveInner"]> | null = syntaxTree(state).resolveInner(dot, -1);
+    n;
+    n = n.parent
+  ) {
+    if (n.to !== dot || (n.name !== "FunctionLiteral" && n.name !== "CallExpr")) continue;
+    const text = state.sliceDoc(n.from, n.to).trim();
+    if (!text.startsWith("func")) continue;
+    return { from: n.from, text, statement: lineIsBlankBefore(state, n.from) };
+  }
+  return null;
+}
+
+/**
  * Finds the postfix key and candidate expressions before the caret: `foo.bar().if|`
  * → key `if`, expressions [`foo.bar()`]. Wider expressions (`a + b`) are
  * found through the syntax tree. Returns null when there is no `.key`.
@@ -548,6 +581,11 @@ export function findPostfixTarget(state: EditorState, pos: number, language: str
   const dot = pos - key.length - 1;
   if (dot <= line.from - 1 || state.sliceDoc(dot, dot + 1) !== ".") return null;
   if (state.sliceDoc(dot - 1, dot) === ".") return null;
+
+  if (language === "go") {
+    const literal = goFunctionLiteral(state, dot);
+    if (literal) return { dot, end: pos, key, candidates: [literal] };
+  }
 
   const windowFrom = Math.max(0, dot - 4000);
   const text = state.sliceDoc(windowFrom, dot);
@@ -598,7 +636,11 @@ export function isCompound(expr: string): boolean {
   return false;
 }
 
-/** Candidates a template may use (statement templates need a statement position). */
+/**
+ * Candidates a template may use.
+ * Statement templates keep only statement candidates. `allowNonStatement` keeps all candidates.
+ */
 export function candidatesFor(t: PostfixTemplate, target: PostfixTarget): PostfixTarget["candidates"] {
-  return t.statement ? target.candidates.filter((c) => c.statement) : target.candidates;
+  if (!t.statement || (t.allowNonStatement && t.action)) return target.candidates;
+  return target.candidates.filter((c) => c.statement);
 }

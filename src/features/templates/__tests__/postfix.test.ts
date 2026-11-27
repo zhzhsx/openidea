@@ -84,6 +84,29 @@ describe("postfix target", () => {
     expect((await target("kotlin", "fun f() {\n  user?.name.nn"))!.candidates[0]!.text).toBe("user?.name");
   });
 
+  it("Go: uses the whole func literal before .var", async () => {
+    const direct = (await target("go", "func f() {\n\tfunc(a int) int { return a }.var"))!;
+    expect(direct.candidates.map((c) => c.text)).toEqual(["func(a int) int { return a }"]);
+    expect(direct.candidates[0]!.statement).toBe(true);
+
+    const invoked = (await target("go", "func f() {\n\tfunc() int { return 1 }().var"))!;
+    expect(invoked.candidates.map((c) => c.text)).toEqual(["func() int { return 1 }()"]);
+    expect(invoked.candidates[0]!.statement).toBe(true);
+  });
+
+  it("Go: .var keeps a string inside a call, Java still filters it", async () => {
+    const go = (await target("go", 'package main\nfunc f() { fmt.Println("aaa".var'))!;
+    expect(go.candidates[0]!.text).toBe('"aaa"');
+    expect(go.candidates[0]!.statement).toBe(false);
+    const goVar = postfixTemplatesFor("go").find((x) => x.key === "var")!;
+    expect(candidatesFor(goVar, go).map((c) => c.text)).toEqual(['"aaa"']);
+
+    const java = (await target("java", 'class A { void f() { g("aaa".var'))!;
+    expect(java.candidates[0]!.statement).toBe(false);
+    const javaVar = postfixTemplatesFor("java").find((x) => x.key === "var")!;
+    expect(candidatesFor(javaVar, java)).toEqual([]);
+  });
+
   it("returns null without a key position or expression", async () => {
     expect(await target("typescript", "foo")).toBeNull();
     expect(await target("typescript", "  .if")).toBeNull();

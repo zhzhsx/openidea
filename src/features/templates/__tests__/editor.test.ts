@@ -27,7 +27,13 @@ import {
 import { closeChooser, useChooser } from "../popup/store";
 import { liveTemplates, removeTemplate, saveTemplate } from "../live/store";
 
-const MODES: Record<string, string> = { typescript: "TypeScript", rust: "Rust", python: "Python", java: "Java" };
+const MODES: Record<string, string> = {
+  typescript: "TypeScript",
+  rust: "Rust",
+  python: "Python",
+  go: "Go",
+  java: "Java",
+};
 
 let view: EditorView | null = null;
 afterEach(() => {
@@ -234,6 +240,84 @@ describe("Java .var", () => {
       );
     await vi.waitFor(() => expect(v.state.doc.toString()).toContain("var name = name();"));
     expect(v.state.doc.toString()).toBe("class A { void f() {\n  var name = name();\n} }");
+  });
+});
+
+describe("Go .var", () => {
+  it("assigns an unparenthesized func literal to a new variable", async () => {
+    const v = await editor("go", "func f() {\n\tfunc(a int) int { return a }.var");
+    expect(expandPostfixAtCaret(v)).toBe(true);
+    await tick();
+    expect(v.state.doc.toString()).toContain(":= func(a int) int { return a }");
+    expect(v.state.doc.toString()).not.toContain(".var");
+  });
+
+  it("runs Introduce Variable on a string inside a call without a semicolon", async () => {
+    let seen: { doc: string; selected: string } | null = null;
+    const dispose = registerAction({
+      id: "refactor.extractVariable",
+      title: "Introduce Variable…",
+      run: () => {
+        const sel = view!.state.selection.main;
+        seen = { doc: view!.state.doc.toString(), selected: view!.state.sliceDoc(sel.from, sel.to) };
+      },
+    });
+    try {
+      const doc = 'package main\nfunc f() { fmt.Println("aaa".var) }';
+      const v = await editor("go", doc, doc.indexOf('"aaa".var') + '"aaa".var'.length);
+      expect(expandPostfixAtCaret(v)).toBe(true);
+      const req = useChooser.getState().request;
+      if (req)
+        req.onPick(
+          req.items.find((i) => i.label === '"aaa"')!,
+          "",
+        );
+      await vi.waitFor(() => expect(seen).not.toBeNull());
+      expect(seen).toEqual({ doc: 'package main\nfunc f() { fmt.Println("aaa") }', selected: '"aaa"' });
+    } finally {
+      dispose();
+    }
+  });
+
+  it("leaves the call alone when Introduce Variable is unavailable", async () => {
+    const doc = 'package main\nfunc f() { fmt.Println("aaa".var) }';
+    const v = await editor("go", doc, doc.indexOf('"aaa".var') + '"aaa".var'.length);
+    expect(expandPostfixAtCaret(v)).toBe(true);
+    const req = useChooser.getState().request;
+    if (req)
+      req.onPick(
+        req.items.find((i) => i.label === '"aaa"')!,
+        "",
+      );
+    await tick();
+    expect(v.state.doc.toString()).toBe(doc);
+  });
+
+  it("keeps the expression selected when Introduce Variable is disabled", async () => {
+    const dispose = registerAction({
+      id: "refactor.extractVariable",
+      title: "Introduce Variable…",
+      enabled: () => false,
+      run: () => {},
+    });
+    try {
+      const doc = 'package main\nfunc f() { fmt.Println("aaa".var) }';
+      const v = await editor("go", doc, doc.indexOf('"aaa".var') + '"aaa".var'.length);
+      expect(expandPostfixAtCaret(v)).toBe(true);
+      const req = useChooser.getState().request;
+      if (req)
+        req.onPick(
+          req.items.find((i) => i.label === '"aaa"')!,
+          "",
+        );
+      await tick();
+      expect(v.state.doc.toString()).toBe('package main\nfunc f() { fmt.Println("aaa") }');
+      const sel = v.state.selection.main;
+      expect(v.state.sliceDoc(sel.from, sel.to)).toBe('"aaa"');
+      expect(v.state.doc.toString()).not.toContain(":=");
+    } finally {
+      dispose();
+    }
   });
 });
 

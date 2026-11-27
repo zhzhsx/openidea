@@ -535,12 +535,16 @@ export function applyPostfix(view: EditorView, t: PostfixTemplate, target: Postf
     const expr = t.wrapCompound && isCompound(c.text) ? `(${c.text})` : c.text;
     // The key may have grown since the target was computed (completion).
     const end = Math.max(target.end, view.state.selection.main.head);
+    // The text template declares a variable in place. A sub-expression needs the action to hoist the declaration.
+    const canUseText = c.statement || !t.allowNonStatement;
     if (t.action && getAction(t.action)) {
-      void runPostfixAction(view, t.action, c.from, target.dot, end, !!t.statement).then(async (ran) => {
-        if (!ran) await expandInto(view, t, c.from, target.dot, { predefined: { EXPR: expr }, expression: c.text });
+      void runPostfixAction(view, t.action, c.from, target.dot, end, c.statement).then(async (ran) => {
+        if (!ran && canUseText)
+          await expandInto(view, t, c.from, target.dot, { predefined: { EXPR: expr }, expression: c.text });
       });
       return;
     }
+    if (!canUseText) return;
     void expandInto(view, t, c.from, end, { predefined: { EXPR: expr }, expression: c.text });
   };
   if (candidates.length <= 1) {
